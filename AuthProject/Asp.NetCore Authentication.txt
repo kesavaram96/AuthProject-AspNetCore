@@ -1,0 +1,73 @@
+ASP.Net core Authentication
+
+----------------#Program.cs---------------------------------------------------------
+using Microsoft.AspNetCore.Authentication.Cookies;
+
+builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+    .AddCookie(option =>
+    {
+        option.LoginPath = "/Access/Login";
+        option.ExpireTimeSpan = TimeSpan.FromMinutes(5);
+    });
+
+app.UseAuthentication();
+
+
+----Login- Model--------------------------------------------------------------------
+    public class VMLogin
+    {
+        public string Email { get; set; }
+        public string Password { get; set; }
+        public bool KeepLoggedIn { get; set; }
+    }
+
+
+----------Access Controller--------------------------------------------------------------------
+using System.Security.Claims;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using AuthProject.Models;
+
+
+ public IActionResult Login()
+        {
+            ClaimsPrincipal claimUser = HttpContext.User;
+
+            if(claimUser.Identity.IsAuthenticated)
+                return RedirectToAction("Index", "Home");   
+            return View();
+        }
+        [HttpPost]
+        public async Task<IActionResult> Login(VMLogin modelLogin)
+        {
+            if(modelLogin.Email=="user@example.com" &&  modelLogin.Password=="123")
+            {
+                List<Claim> claims = new List<Claim>()
+                {
+                    new Claim(ClaimTypes.NameIdentifier, modelLogin.Email),
+                    new Claim("OtherProperties","user  role")
+                };
+                ClaimsIdentity claimsIdentity = new ClaimsIdentity(claims,CookieAuthenticationDefaults.AuthenticationScheme);
+
+                AuthenticationProperties properties = new AuthenticationProperties()
+                {
+                    AllowRefresh = true,
+                    IsPersistent = modelLogin.KeepLoggedIn,
+                };
+
+                await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme,
+                    new ClaimsPrincipal(claimsIdentity),properties);
+                return RedirectToAction("Index", "Home");
+            }
+            ViewData["ValidateMessage"] = "User Not found";
+            return View();
+        }
+
+-------Signout----------------------------
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authorisation;
+
+await HttpContext.SignOutAsync(CookiesAuthenticationDefault.AuthenticationScheme);
+
+
